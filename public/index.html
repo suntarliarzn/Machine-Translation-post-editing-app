@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MT Workbench</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-page: #f5f4f0;
+    --bg-panel: #ffffff;
+    --bg-strip: #f8f8f6;
+    --text-primary: #1a1a18;
+    --text-secondary: #666;
+    --text-muted: #bbb;
+    --border: rgba(0,0,0,0.11);
+    --border-med: rgba(0,0,0,0.18);
+    --ds: #7c3aed;
+    --ds-bg: rgba(124,58,237,0.07);
+    --ds-border: rgba(124,58,237,0.28);
+    --qw: #0ea5e9;
+    --qw-bg: rgba(14,165,233,0.07);
+    --qw-border: rgba(14,165,233,0.28);
+    --green: #10b981;
+    --blue-bg: #e6f1fb;
+    --blue-text: #185fa5;
+    --radius: 10px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg-page);
+    color: var(--text-primary);
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 16px 24px;
+    background: var(--bg-panel);
+    border-bottom: 0.5px solid var(--border);
+  }
+  .header h1 { font-size: 15px; font-weight: 500; }
+  .badge {
+    font-size: 11px; font-weight: 500;
+    padding: 2px 9px; border-radius: 20px;
+    background: var(--blue-bg); color: var(--blue-text);
+  }
+
+  /* ── Layout ── */
+  .workspace {
+    display: grid;
+    grid-template-columns: 1fr 72px 1fr 72px 1fr;
+    padding: 20px;
+    gap: 0;
+    min-height: calc(100vh - 56px);
+    align-items: start;
+  }
+
+  .col { display: flex; flex-direction: column; gap: 10px; }
+  .col-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--text-secondary);
+    padding: 0 2px 2px;
+  }
+
+  /* ── Panel ── */
+  .panel {
+    background: var(--bg-panel);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .panel + .panel { margin-top: 8px; }
+
+  .panel-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .panel-head .lbl { font-size: 12px; font-weight: 500; color: var(--text-secondary); flex: 1; }
+  .status-badge {
+    font-size: 10px; font-weight: 500;
+    padding: 2px 7px; border-radius: 20px;
+    display: none;
+  }
+  .status-badge.ok  { display: inline; background: rgba(16,185,129,0.1); color: #059669; }
+  .status-badge.err { display: inline; background: rgba(239,68,68,0.1);  color: #dc2626; }
+  .status-badge.run { display: inline; background: var(--bg-strip); color: var(--text-secondary); }
+
+  textarea {
+    width: 100%; border: none; outline: none; resize: none;
+    background: transparent;
+    font-family: inherit; font-size: 14px; line-height: 1.7;
+    color: var(--text-primary);
+    padding: 14px;
+    min-height: 155px;
+  }
+  textarea::placeholder { color: var(--text-muted); }
+  textarea[readonly] { cursor: default; }
+
+  .char-count {
+    font-size: 11px; color: var(--text-muted);
+    text-align: right; padding: 0 14px 8px;
+  }
+
+  /* ── Translate button ── */
+  .translate-btn {
+    width: 100%; padding: 9px;
+    border-radius: 8px; border: none;
+    background: var(--text-primary); color: #fff;
+    font-size: 13px; font-weight: 500; font-family: inherit;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: opacity 0.15s;
+    margin: 0 12px 12px; width: calc(100% - 24px);
+  }
+  .translate-btn:hover:not(:disabled) { opacity: 0.8; }
+  .translate-btn:disabled { opacity: 0.38; cursor: not-allowed; }
+
+  /* ── Eval strip ── */
+  .eval-strip {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 9px 14px;
+    border-top: 0.5px solid var(--border);
+    background: var(--bg-strip);
+    font-size: 12px; color: var(--text-secondary);
+    line-height: 1.55; min-height: 44px;
+  }
+  .reviewer-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 600;
+    padding: 2px 7px; border-radius: 20px;
+    white-space: nowrap; flex-shrink: 0; margin-top: 1px;
+  }
+  .tag-qw { background: var(--qw-bg); color: var(--qw); border: 0.5px solid var(--qw-border); }
+  .tag-ds { background: var(--ds-bg); color: var(--ds); border: 0.5px solid var(--ds-border); }
+  .eval-text { flex: 1; }
+
+  /* ── Connector column ── */
+  .connector {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-start;
+    gap: 10px; padding: 28px 8px 0;
+  }
+  .arrow-icon { color: var(--border-med); }
+
+  .btn-dir {
+    width: 100%; font-size: 11px; font-weight: 600;
+    padding: 5px 8px; border-radius: 6px;
+    border: 0.5px solid var(--border-med);
+    background: var(--bg-panel); color: var(--text-primary);
+    cursor: pointer; text-align: center;
+    transition: background 0.12s;
+  }
+  .btn-dir:hover { background: var(--bg-strip); }
+  .btn-dir.active {
+    background: var(--blue-bg); color: var(--blue-text);
+    border-color: rgba(24,95,165,0.3);
+  }
+
+  .btn-copy {
+    width: 100%; font-size: 11px; font-weight: 600;
+    padding: 5px 8px; border-radius: 6px;
+    border: 0.5px solid; background: transparent;
+    cursor: pointer; text-align: center;
+    transition: background 0.12s;
+  }
+  .btn-copy.cp-ds { border-color: var(--ds-border); color: var(--ds); }
+  .btn-copy.cp-ds:hover { background: var(--ds-bg); }
+  .btn-copy.cp-qw { border-color: var(--qw-border); color: var(--qw); }
+  .btn-copy.cp-qw:hover { background: var(--qw-bg); }
+
+  /* ── User eval actions ── */
+  .eval-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn-eval {
+    flex: 1; font-size: 12px; font-weight: 500;
+    padding: 7px 12px; border-radius: 8px;
+    border: 0.5px solid; background: transparent;
+    cursor: pointer; font-family: inherit;
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+    transition: background 0.12s;
+  }
+  .btn-eval.ev-ds { border-color: var(--ds-border); color: var(--ds); }
+  .btn-eval.ev-ds:hover { background: var(--ds-bg); }
+  .btn-eval.ev-qw { border-color: var(--qw-border); color: var(--qw); }
+  .btn-eval.ev-qw:hover { background: var(--qw-bg); }
+
+  /* ── User eval result panel ── */
+  .user-eval-panel {
+    background: var(--bg-panel);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: none;
+  }
+  .user-eval-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 0.5px solid var(--border);
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+  .user-eval-body {
+    padding: 12px 14px;
+    font-size: 13px; color: var(--text-secondary);
+    line-height: 1.65; min-height: 58px;
+  }
+
+  /* ── Spinner ── */
+  .spinner {
+    display: inline-block;
+    width: 11px; height: 11px;
+    border: 1.5px solid var(--border-med);
+    border-top-color: var(--text-secondary);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0; vertical-align: middle;
+  }
+  .spinner.white { border-color: rgba(255,255,255,0.3); border-top-color: #fff; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Error toast ── */
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #1a1a18; color: #fff;
+    font-size: 13px; padding: 10px 18px; border-radius: 8px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: 999;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <i class="ti ti-language" style="font-size:18px;color:#888;" aria-hidden="true"></i>
+  <h1>MT Workbench</h1>
+  <span class="badge">DeepSeek · Qwen</span>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+    <label style="font-size:12px;color:var(--text-secondary);">Password</label>
+    <input id="app-password" type="password" placeholder="Enter password…"
+      style="font-size:12px;padding:5px 10px;border-radius:6px;border:0.5px solid var(--border-med);outline:none;font-family:inherit;width:160px;" />
+  </div>
+</header>
+
+<div class="workspace">
+
+  <!-- ── Column 1: Source ── -->
+  <div class="col">
+    <span class="col-label">Source</span>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="dot" style="background:#1a1a18;"></div>
+        <span class="lbl">Input text</span>
+      </div>
+      <textarea id="src-text" placeholder="Enter source text here…"
+        oninput="updateCharCount()" rows="9"></textarea>
+      <div class="char-count" id="char-count">0 characters</div>
+      <button class="translate-btn" id="translate-btn" onclick="translateAll()">
+        <i class="ti ti-wand" aria-hidden="true"></i> Translate
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Connector 1: Language direction ── -->
+  <div class="connector">
+    <svg class="arrow-icon" width="22" height="22" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+    </svg>
+    <button class="btn-dir active" id="btn-en-zh" onclick="setDirection('en-zh')">EN → ZH</button>
+    <button class="btn-dir"        id="btn-zh-en" onclick="setDirection('zh-en')">ZH → EN</button>
+  </div>
+
+  <!-- ── Column 2: MT Results ── -->
+  <div class="col">
+    <span class="col-label">Machine translation</span>
+
+    <!-- DeepSeek — reviewed by Qwen -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="dot" style="background:var(--ds);"></div>
+        <span class="lbl">DeepSeek</span>
+        <span class="status-badge" id="ds-status"></span>
+      </div>
+      <textarea id="ds-text" placeholder="DeepSeek translation will appear here…"
+        rows="7" readonly></textarea>
+      <div class="eval-strip" id="ds-eval">
+        <span class="reviewer-tag tag-qw">
+          <i class="ti ti-message-circle" style="font-size:10px;" aria-hidden="true"></i>
+          Qwen review
+        </span>
+        <span class="eval-text" style="color:var(--text-muted);">
+          Evaluation will appear after translation.
+        </span>
+      </div>
+    </div>
+
+    <!-- Qwen — reviewed by DeepSeek -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="dot" style="background:var(--qw);"></div>
+        <span class="lbl">Qwen</span>
+        <span class="status-badge" id="qw-status"></span>
+      </div>
+      <textarea id="qw-text" placeholder="Qwen translation will appear here…"
+        rows="7" readonly></textarea>
+      <div class="eval-strip" id="qw-eval">
+        <span class="reviewer-tag tag-ds">
+          <i class="ti ti-message-circle" style="font-size:10px;" aria-hidden="true"></i>
+          DeepSeek review
+        </span>
+        <span class="eval-text" style="color:var(--text-muted);">
+          Evaluation will appear after translation.
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Connector 2: Copy to user ── -->
+  <div class="connector">
+    <svg class="arrow-icon" width="22" height="22" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+    </svg>
+    <button class="btn-copy cp-ds" onclick="copyTo('ds')">↙ DeepSeek</button>
+    <button class="btn-copy cp-qw" onclick="copyTo('qw')">↙ Qwen</button>
+  </div>
+
+  <!-- ── Column 3: User Translation ── -->
+  <div class="col">
+    <span class="col-label">Your translation</span>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="dot" style="background:var(--green);"></div>
+        <span class="lbl">Edit or write your version</span>
+      </div>
+      <textarea id="user-text"
+        placeholder="Paste or type your translation here…" rows="9"></textarea>
+    </div>
+
+    <div class="eval-actions">
+      <button class="btn-eval ev-ds" onclick="evalUser('ds')">
+        <i class="ti ti-wand" aria-hidden="true"></i> Evaluate with DeepSeek
+      </button>
+      <button class="btn-eval ev-qw" onclick="evalUser('qw')">
+        <i class="ti ti-wand" aria-hidden="true"></i> Evaluate with Qwen
+      </button>
+    </div>
+
+    <div class="user-eval-panel" id="user-eval-panel">
+      <div class="user-eval-head" id="user-eval-head">Evaluation</div>
+      <div class="user-eval-body" id="user-eval-body"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  /* ── State ── */
+  let direction = 'en-zh';
+  let dsResult  = '';
+  let qwResult  = '';
+
+  /* ── Helpers ── */
+  function updateCharCount() {
+    const n = document.getElementById('src-text').value.length;
+    document.getElementById('char-count').textContent =
+      n + ' character' + (n !== 1 ? 's' : '');
+  }
+
+  function setDirection(d) {
+    direction = d;
+    document.getElementById('btn-en-zh').classList.toggle('active', d === 'en-zh');
+    document.getElementById('btn-zh-en').classList.toggle('active', d === 'zh-en');
+  }
+
+  function copyTo(model) {
+    const text = model === 'ds' ? dsResult : qwResult;
+    if (!text) { showToast('No translation to copy yet.'); return; }
+    document.getElementById('user-text').value = text;
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2400);
+  }
+
+  function setStatus(id, state, label) {
+    const el = document.getElementById(id);
+    el.className = 'status-badge ' + state;
+    el.textContent = label;
+  }
+
+  function setEvalLoading(id, tagClass, tagLabel) {
+    document.getElementById(id).innerHTML =
+      `<span class="reviewer-tag ${tagClass}">
+         <i class="ti ti-message-circle" style="font-size:10px;" aria-hidden="true"></i>
+         ${tagLabel}
+       </span>
+       <span class="eval-text" style="display:flex;align-items:center;gap:6px;">
+         <span class="spinner"></span>
+         <span style="color:var(--text-muted);font-style:italic;">Evaluating…</span>
+       </span>`;
+  }
+
+  function setEvalDone(id, tagClass, tagLabel, text) {
+    document.getElementById(id).innerHTML =
+      `<span class="reviewer-tag ${tagClass}">
+         <i class="ti ti-message-circle" style="font-size:10px;" aria-hidden="true"></i>
+         ${tagLabel}
+       </span>
+       <span class="eval-text">${text}</span>`;
+  }
+
+  function setEvalError(id, tagClass, tagLabel) {
+    setEvalDone(id, tagClass, tagLabel,
+      '<span style="color:var(--text-muted);">Evaluation failed. Please try again.</span>');
+  }
+
+  /* ── API calls ── */
+  async function callModel(model, system, prompt) {
+    const endpoint = model === 'ds' ? '/api/deepseek' : '/api/qwen';
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ system, prompt, password: document.getElementById('app-password').value })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    return data.result.trim();
+  }
+
+  /* ── Main translate flow ── */
+  async function translateAll() {
+    const src = document.getElementById('src-text').value.trim();
+    if (!src) { showToast('Please enter some text first.'); return; }
+
+    const btn = document.getElementById('translate-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner white"></span> Translating…';
+
+    dsResult = '';
+    qwResult = '';
+    document.getElementById('ds-text').value = '';
+    document.getElementById('qw-text').value = '';
+
+    const srcLang = direction === 'en-zh' ? 'English' : 'Chinese';
+    const tgtLang = direction === 'en-zh' ? 'Chinese (Simplified)' : 'English';
+
+    setStatus('ds-status', 'run', 'translating…');
+    setStatus('qw-status', 'run', 'translating…');
+    setEvalLoading('ds-eval', 'tag-qw', 'Qwen review');
+    setEvalLoading('qw-eval', 'tag-ds', 'DeepSeek review');
+
+    /* System prompts — translation */
+    const dsTrSys = `You are a professional translator in the style of DeepSeek: prioritize lexical precision and structural faithfulness to the source. Translate the ${srcLang} text into ${tgtLang}. Output ONLY the translation — no preamble, no explanation.`;
+    const qwTrSys = `You are a professional translator in the style of Qwen: prioritize natural fluency, idiomatic expression, and readability in the target language. Translate the ${srcLang} text into ${tgtLang}. Output ONLY the translation — no preamble, no explanation.`;
+
+    /* System prompts — cross evaluation (one sentence, ≤20 words) */
+    const qwEvSys = `You are a translation quality reviewer in the style of Qwen: focus on naturalness, fluency, and idiomatic expression. Write EXACTLY one concise sentence (max 20 words) evaluating the translation. Be specific.`;
+    const dsEvSys = `You are a translation quality reviewer in the style of DeepSeek: focus on lexical accuracy and structural faithfulness. Write EXACTLY one concise sentence (max 20 words) evaluating the translation. Be specific.`;
+
+    /* Run DeepSeek translation then Qwen evaluates it */
+    const runDS = async () => {
+      try {
+        const t = await callModel('ds', dsTrSys, src);
+        dsResult = t;
+        document.getElementById('ds-text').value = t;
+        setStatus('ds-status', 'ok', '✓ done');
+        /* Qwen reviews DeepSeek */
+        try {
+          const ev = await callModel('qw', qwEvSys,
+            `Source (${srcLang}): "${src}"\nDeepSeek translation (${tgtLang}): "${t}"\nYour one-sentence evaluation:`);
+          setEvalDone('ds-eval', 'tag-qw', 'Qwen review', ev);
+        } catch { setEvalError('ds-eval', 'tag-qw', 'Qwen review'); }
+      } catch (e) {
+        setStatus('ds-status', 'err', '✗ error');
+        setEvalError('ds-eval', 'tag-qw', 'Qwen review');
+        showToast('DeepSeek error: ' + e.message);
+      }
+    };
+
+    /* Run Qwen translation then DeepSeek evaluates it */
+    const runQW = async () => {
+      try {
+        const t = await callModel('qw', qwTrSys, src);
+        qwResult = t;
+        document.getElementById('qw-text').value = t;
+        setStatus('qw-status', 'ok', '✓ done');
+        /* DeepSeek reviews Qwen */
+        try {
+          const ev = await callModel('ds', dsEvSys,
+            `Source (${srcLang}): "${src}"\nQwen translation (${tgtLang}): "${t}"\nYour one-sentence evaluation:`);
+          setEvalDone('qw-eval', 'tag-ds', 'DeepSeek review', ev);
+        } catch { setEvalError('qw-eval', 'tag-ds', 'DeepSeek review'); }
+      } catch (e) {
+        setStatus('qw-status', 'err', '✗ error');
+        setEvalError('qw-eval', 'tag-ds', 'DeepSeek review');
+        showToast('Qwen error: ' + e.message);
+      }
+    };
+
+    await Promise.all([runDS(), runQW()]);
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-wand" aria-hidden="true"></i> Translate';
+  }
+
+  /* ── Evaluate user translation ── */
+  async function evalUser(model) {
+    const src      = document.getElementById('src-text').value.trim();
+    const userTxt  = document.getElementById('user-text').value.trim();
+    if (!src)     { showToast('Please enter source text first.');        return; }
+    if (!userTxt) { showToast('Please enter your translation first.');   return; }
+
+    const panel  = document.getElementById('user-eval-panel');
+    const head   = document.getElementById('user-eval-head');
+    const body   = document.getElementById('user-eval-body');
+    const name   = model === 'ds' ? 'DeepSeek' : 'Qwen';
+    const tag    = model === 'ds' ? 'tag-ds' : 'tag-qw';
+
+    panel.style.display = 'block';
+    head.innerHTML =
+      `<span class="reviewer-tag ${tag}">
+         <i class="ti ti-message-circle" style="font-size:10px;" aria-hidden="true"></i>
+         ${name} evaluation
+       </span>`;
+    body.innerHTML = '<span class="spinner"></span>';
+
+    const srcLang = direction === 'en-zh' ? 'English' : 'Chinese';
+    const tgtLang = direction === 'en-zh' ? 'Chinese (Simplified)' : 'English';
+
+    const sys = model === 'ds'
+      ? `You are a translation quality reviewer in the style of DeepSeek: focus on lexical accuracy, structural faithfulness, and source adherence. Provide a 2–3 sentence evaluation covering accuracy, fluency, and specific improvements.`
+      : `You are a translation quality reviewer in the style of Qwen: focus on naturalness, idiomatic fluency, and readability. Provide a 2–3 sentence evaluation covering accuracy, fluency, and specific improvements.`;
+
+    try {
+      const result = await callModel(model, sys,
+        `Source (${srcLang}): "${src}"\nUser's translation (${tgtLang}): "${userTxt}"\nYour evaluation:`);
+      body.textContent = result;
+    } catch (e) {
+      body.textContent = 'Evaluation failed: ' + e.message;
+    }
+  }
+</script>
+</body>
+</html>

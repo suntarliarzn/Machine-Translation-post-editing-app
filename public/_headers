@@ -1,0 +1,5 @@
+# Cloudflare Pages headers config
+# Ensures functions are not cached
+
+/api/*
+  Cache-Control: no-store
